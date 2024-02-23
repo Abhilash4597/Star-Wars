@@ -1,35 +1,105 @@
-import { useState } from 'react'
-import reactLogo from './assets/react.svg'
-import viteLogo from '/vite.svg'
-import './App.css'
+import { useState, useEffect } from "react";
+import "./App.css";
 
-function App() {
-  const [count, setCount] = useState(0)
+const App = () => {
+  const [loading, setLoading] = useState(false);
+  const [planets, setPlanets] = useState([]);
+  const [nextUrl, setNextUrl] = useState("");
+  const [prevUrl, setPrevUrl] = useState("");
+
+  useEffect(() => {
+    fetchPlanets("https://swapi.dev/api/planets/?format=json");
+  }, []);
+
+  const fetchPlanets = async (url) => {
+    setLoading(true);
+    try {
+      const response = await fetch(url);
+      const data = await response.json();
+      setNextUrl(data.next);
+      setPrevUrl(data.previous);
+
+      const planetsData = await Promise.all(
+        data.results.map(async (planet) => {
+          // Fetch residents data for each planet
+          const residentsData = await Promise.all(
+            planet.residents.map(async (residentUrl) => {
+              const residentResponse = await fetch(residentUrl);
+              return residentResponse.json();
+            })
+          );
+
+          // Attach residents data to the planet
+          return { ...planet, residents: residentsData };
+        })
+      );
+
+      setPlanets(planetsData);
+    } catch (error) {
+      console.error("Error fetching data:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handlePageChange = (direction) => {
+    if (
+      (direction === "next" && nextUrl) ||
+      (direction === "prev" && prevUrl)
+    ) {
+      fetchPlanets(direction === "next" ? nextUrl : prevUrl);
+    }
+  };
+
+  const renderResidentDetails = (resident) => (
+    <div key={resident.name}>
+      <h4>{resident.name}</h4>
+      <p>Height: {resident.height}</p>
+      <p>Mass: {resident.mass}</p>
+      <p>Gender: {resident.gender}</p>
+    </div>
+  );
+
+  const renderPlanetCard = (planet) => (
+    <div key={planet.name} className="card card-planet">
+      <h2>{planet.name}</h2>
+      <h5>Climate: {planet.climate}</h5>
+      <h5>Population: {planet.population}</h5>
+      <h5>Terrain: {planet.terrain}</h5>
+      <h5>Residents:</h5>
+      {planet.residents.map((resident) => renderResidentDetails(resident))}
+    </div>
+  );
 
   return (
-    <>
-      <div>
-        <a href="https://vitejs.dev" target="_blank">
-          <img src={viteLogo} className="logo" alt="Vite logo" />
-        </a>
-        <a href="https://react.dev" target="_blank">
-          <img src={reactLogo} className="logo react" alt="React logo" />
-        </a>
+    <div className="App">
+      <div className="overlay" style={{ display: loading ? "flex" : "none" }}>
+        Loading...
       </div>
-      <h1>Vite + React</h1>
-      <div className="card">
-        <button onClick={() => setCount((count) => count + 1)}>
-          count is {count}
-        </button>
-        <p>
-          Edit <code>src/App.jsx</code> and save to test HMR
-        </p>
-      </div>
-      <p className="read-the-docs">
-        Click on the Vite and React logos to learn more
-      </p>
-    </>
-  )
-}
+      <nav>
+        <div className="nav-items">
+          <img
+            src="https://upload.wikimedia.org/wikipedia/commons/thumb/6/6c/Star_Wars_Logo.svg/2560px-Star_Wars_Logo.svg.png"
+            alt="Logo"
+          />
+        </div>
+      </nav>
+      <main>
+        <h1 className="main-title">Star Wars Planets</h1>
+        <div className="ctn-main">
+          {planets.map((planet) => renderPlanetCard(planet))}
+        </div>
+        <div className="pagination">
+          <button onClick={() => handlePageChange("prev")} disabled={!prevUrl}>
+            Previous
+          </button>
+          <button onClick={() => handlePageChange("next")} disabled={!nextUrl}>
+            Next
+          </button>
+        </div>
+      </main>
+    </div>
+  );
+};
 
-export default App
+export default App;
