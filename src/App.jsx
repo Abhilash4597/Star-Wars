@@ -4,72 +4,61 @@ import "./App.css";
 const App = () => {
   const [loading, setLoading] = useState(false);
   const [planets, setPlanets] = useState([]);
-  const [nextUrl, setNextUrl] = useState("");
-  const [prevUrl, setPrevUrl] = useState("");
+  const [selectedPlanet, setSelectedPlanet] = useState(null);
+  const [error, setError] = useState(null);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [nextPage, setNextPage] = useState(null);
+  const [prevPage, setPrevPage] = useState(null);
 
   useEffect(() => {
-    fetchPlanets("https://swapi.dev/api/planets/?format=json");
-  }, []);
+    fetchPlanets(`https://swapi.dev/api/planets/?page=${currentPage}`);
+  }, [currentPage]);
 
   const fetchPlanets = async (url) => {
     setLoading(true);
     try {
       const response = await fetch(url);
       const data = await response.json();
-      setNextUrl(data.next);
-      setPrevUrl(data.previous);
+      setPlanets(data.results);
+      setNextPage(data.next);
+      setPrevPage(data.previous);
+    } catch (error) {
+      console.error("Error fetching planets:", error);
+      setError("Error fetching planets. Please try again later.");
+    } finally {
+      setLoading(false);
+    }
+  };
 
-      const planetsData = await Promise.all(
-        data.results.map(async (planet) => {
-          // Fetch residents data for each planet
-          const residentsData = await Promise.all(
-            planet.residents.map(async (residentUrl) => {
-              const residentResponse = await fetch(residentUrl);
-              return residentResponse.json();
-            })
-          );
-
-          // Attach residents data to the planet
-          return { ...planet, residents: residentsData };
+  const fetchResidents = async (planet) => {
+    setLoading(true);
+    try {
+      const residentsData = await Promise.all(
+        planet.residents.map(async (residentUrl) => {
+          const response = await fetch(residentUrl);
+          return response.json();
         })
       );
-
-      setPlanets(planetsData);
+      setSelectedPlanet({ ...planet, residents: residentsData });
     } catch (error) {
-      console.error("Error fetching data:", error);
+      console.error("Error fetching residents:", error);
+      setError("Error fetching residents. Please try again later.");
     } finally {
       setLoading(false);
     }
   };
 
   const handlePageChange = (direction) => {
-    if (
-      (direction === "next" && nextUrl) ||
-      (direction === "prev" && prevUrl)
-    ) {
-      fetchPlanets(direction === "next" ? nextUrl : prevUrl);
+    if (direction === "next" && nextPage) {
+      setCurrentPage(currentPage + 1);
+    } else if (direction === "prev" && prevPage) {
+      setCurrentPage(currentPage - 1);
     }
   };
 
-  const renderResidentDetails = (resident) => (
-    <div key={resident.name}>
-      <h4>{resident.name}</h4>
-      <p>Height: {resident.height}</p>
-      <p>Mass: {resident.mass}</p>
-      <p>Gender: {resident.gender}</p>
-    </div>
-  );
-
-  const renderPlanetCard = (planet) => (
-    <div key={planet.name} className="card card-planet">
-      <h2>{planet.name}</h2>
-      <h5>Climate: {planet.climate}</h5>
-      <h5>Population: {planet.population}</h5>
-      <h5>Terrain: {planet.terrain}</h5>
-      <h5>Residents:</h5>
-      {planet.residents.map((resident) => renderResidentDetails(resident))}
-    </div>
-  );
+  const handleBackToPlanets = () => {
+    setSelectedPlanet(null);
+  };
 
   return (
     <div className="App">
@@ -85,18 +74,62 @@ const App = () => {
         </div>
       </nav>
       <main>
-        <h1 className="main-title">Star Wars Planets</h1>
-        <div className="ctn-main">
-          {planets.map((planet) => renderPlanetCard(planet))}
-        </div>
-        <div className="pagination">
-          <button onClick={() => handlePageChange("prev")} disabled={!prevUrl}>
-            Previous
-          </button>
-          <button onClick={() => handlePageChange("next")} disabled={!nextUrl}>
-            Next
-          </button>
-        </div>
+        {error ? (
+          <p>{error}</p>
+        ) : (
+          <>
+            {selectedPlanet ? (
+              <>
+                <h1 className="main-title">
+                  Residents of {selectedPlanet.name}
+                </h1>
+                <button onClick={handleBackToPlanets} className="backBtn">
+                  Back to Planets
+                </button>
+                <div className="ctn-main">
+                  {selectedPlanet.residents.map((resident) => (
+                    <div key={resident.name} className="card card-planet">
+                      <h3>{resident.name}</h3>
+                      <p>Height: {resident.height}</p>
+                      <p>Mass: {resident.mass}</p>
+                      <p>Gender: {resident.gender}</p>
+                    </div>
+                  ))}
+                </div>
+              </>
+            ) : (
+              <>
+                <h1 className="main-title">Star Wars Planets</h1>
+                <div className="ctn-main">
+                  {planets.map((planet) => (
+                    <div key={planet.name} className="card card-planet">
+                      <h2>{planet.name}</h2>
+                      <p>Climate: {planet.climate}</p>
+                      <p>Population: {planet.population}</p>
+                      {planet.residents.length > 0 && (
+                        <button onClick={() => fetchResidents(planet)}>
+                          Click to see residents
+                        </button>
+                      )}
+                    </div>
+                  ))}
+                </div>
+                <div className="pagination">
+                  <button
+                    onClick={() => handlePageChange("prev")}
+                    disabled={!prevPage}>
+                    Previous
+                  </button>
+                  <button
+                    onClick={() => handlePageChange("next")}
+                    disabled={!nextPage}>
+                    Next
+                  </button>
+                </div>
+              </>
+            )}
+          </>
+        )}
       </main>
     </div>
   );
