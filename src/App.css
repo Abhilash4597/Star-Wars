@@ -25,14 +25,11 @@ nav {
   display: flex;
   align-items: center;
   justify-content: center;
+  margin: 0 auto;
 }
 
 .nav-items img {
-  width: 15%;
-}
-
-button:hover {
-  cursor: pointer;
+  height: 75px;
 }
 
 main {
@@ -89,6 +86,10 @@ button {
   margin: 15px 0;
 }
 
+button:hover {
+  cursor: pointer;
+}
+
 .card:hover,
 .pagination button:hover,
 .backBtn:hover {
@@ -122,7 +123,8 @@ button {
     height: 125px;
   }
 
-  button {
-    height: 20px;
+  .nav-items img {
+    height: 125px;
   }
+
 }
